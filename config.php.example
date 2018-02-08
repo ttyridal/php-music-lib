@@ -1,0 +1,30 @@
+<?php
+/* php-music-lib - server backend
+ *  Copyright (C) 2018  Torbjorn Tyridal
+ *
+ *  Licensed under the AGPL, see LICENCE file
+ */
+
+/*
+ * MEDIA_ROOT defines where the server
+ * shall look for files. It's a local fileystem
+ * path.
+*/
+
+define(MEDIA_ROOT, '/var/www/music');
+define(DEBUG, 0);
+
+/*
+ * virtualPath translates a filesystem path
+ * to a web resource. This is what's shown to
+ * the client.
+ *
+ * ie with media stored at /var/www/music this
+ * should translate '/var/www/music/something/...'
+ * to '/music/something/...'
+*/
+function virtualPath($p) {
+    return substr($p, 8);
+}
+
+?>

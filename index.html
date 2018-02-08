@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<!--
+/* php-music-lib - html5 player
+ *  Copyright (C) 2018  Torbjorn Tyridal
+ *
+ *  Licensed under the AGPL, see LICENCE file
+ */
+-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="html5 audio player">
+<meta name="application-name" content="MyMusic">
+<meta name="apple-mobile-web-app-title" content="MyMusic">
+<meta name='apple-mobile-web-app-capable' content='yes'>
+<meta name='apple-touch-fullscreen' content='yes'>
+<meta name='apple-mobile-web-app-status-bar-style' content='black'>
+<title>MyMusic</title>
+<meta name="author" content="ttyridal">
+<link href="https://fonts.googleapis.com/css?family=Anonymous+Pro|Open+Sans" rel="stylesheet">
+<style type="text/css" charset="UTF-8">
+html {font-size: 14pt; color:black; }
+@media only screen and (max-width: 500px) {
+html {font-size: 18pt; color:black; }
+.hide_on_mobile {
+    display: none;
+}
+}
+
+* {
+    -webkit-touch-callout: none;
+    user-select: none;
+}
+html,
+body {
+    margin:0;
+    padding:0;
+}
+
+ul,li {
+    list-style-type: none;
+    margin:0;
+    padding:0;
+    white-space:nowrap;
+}
+li {
+    padding-bottom: 0.3em;
+}
+li.file,
+li.folder {
+    cursor: pointer;
+    overflow: hidden;
+}
+li.file > span,
+li.folder > span {
+    pointer-events: none;
+}
+li.file:nth-child(2n),
+li.folder:nth-child(2n) {
+    background-color: rgba(0,0,0,0.05);
+}
+li.file:hover,
+li.folder:hover {
+    background-color: rgba(255,255,255,0.5);
+    filter: invert(100%);
+}
+li.file:before,
+li.folder:before {
+    padding-right: 0.3em;
+    display: inline-block;
+}
+li.file:before {
+    content: '\1F3B5';
+}
+li.file > a {
+    float:right;
+    margin-right: 0.6em;
+}
+li.folder:before {
+    content: '\1F4C1';
+}
+li.folder > a {
+    display:none;
+}
+li.file.playing:before {
+    content: '\1f50a';
+    /*  content: '\21BB'; */
+    animation:fadeAndScale 1.5s linear infinite;
+    animation-direction: alternate;
+}
+@keyframes fadeAndScale {
+    from {
+        opacity: 0.6;
+        transform: scale(.8, .8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1, 1);
+    }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(-100%, 0);
+  }
+}
+
+header {
+    position: fixed;
+    width:100%;
+    height:1.8em;
+    line-height: 1.8em;
+    display: flex;
+    justify-content: space-between;
+    z-index: 100;
+    background:rgba(100,100,100,1);
+}
+main {
+    padding-top: 2em;
+}
+
+header > h1 {
+    display: block;
+    margin: 0;
+    padding: 0 0 0 0.2em;
+    font-size: 1em;
+}
+
+header > div.infowindow {
+    background: black;
+    align-self: center;
+    border-radius: 5px;
+    height: 80%;
+    width:35%;
+    white-space:nowrap;
+    overflow: hidden;
+
+    font-family: 'Anonymous Pro', monospace;
+    color: green;
+    line-height: 1.5em;
+    padding: 0 0.5em;
+}
+
+header > div.infowindow > span {
+    display: inline-block;
+    animation: marquee 12s linear infinite;
+    padding-left: 100%;
+}
+
+header > .buttons {
+    display: flex;
+    justify-content: center;
+    font-family: 'Anonymous Pro', monospace;
+}
+
+header > .buttons > .button {
+    width: 1em;
+    height: 70%;
+    line-height: 120%;
+    text-align: center;
+    font-family: 'Anonymous Pro', monospace;
+    align-self: center;
+    cursor: pointer;
+    font-color: white;
+    padding: 0 0.2em;
+    margin: 0 0.2em;
+    border-radius: 40%;
+    border: 1px solid rgba(0,0,0,0.5);
+
+}
+
+</style>
+<body>
+<header>
+    <h1>MyMusic</h1>
+    <div class="infowindow"><span class="infowindow">MyMusic v1.0 - copyright 2018 Torbjørn Tyridal - License AGPL v3</span></div>
+    <div class="buttons">
+        <div class="button play" style="display:none">&#x23f5;</div>
+        <div class="button pause">&#x23f8;</div>
+        <div class="button prev hide_on_mobile">&#x23ee;</div>
+        <div class="button next">&#x23ed;</div>
+    </div>
+</header>
+
+<main>
+<ul id="filelist">
+</ul>
+<template id="listrow">
+    <li data-url=""><span class="title"></span><a href="" download>&#x1F4E5</a></li>
+</template>
+</main>
+</body>
+<script type="text/javascript">
+(()=>{
+
+const infowindow = {
+    dom: document.querySelector('span.infowindow'),
+    pixels_pr_s: (()=>{
+        let i = document.querySelector('span.infowindow');
+        return i.clientWidth / parseFloat(getComputedStyle(i).animationDuration);
+        })(),
+    put: function(text) {
+        infowindow.dom.textContent = text;
+        setTimeout(()=>{
+            infowindow.dom.style.animationDuration = infowindow.dom.clientWidth / infowindow.pixels_pr_s + 's';
+        },1);
+    }
+}
+
+const playlist = {
+    itms: [],
+	audio: document.createElement('audio'),
+    contains: function(url) {
+        return playlist.itms.reduce((acc, i) => { return acc || i.url === url;}, false);
+    },
+    isPlaying: function(url) {
+        return playlist.itms.length && playlist.itms[0].url === url;
+    },
+    put: function(itm) {
+        if (itm instanceof HTMLElement) {
+            let t = itm;
+            itm = {
+                url: t.dataset.url,
+                name: t.querySelector('.title').textContent,
+                dom: t};
+        }
+
+        playlist.itms.push(itm);
+		if (playlist.itms.length === 1)
+			playlist.start();
+    },
+	start: function() {
+		let itm = playlist.itms[0];
+        console.log('playlist.start', itm ? itm.name : 'no item queued');
+		if (!itm) return;
+        infowindow.put(itm.name);
+		itm.dom.classList.add('playing');
+		playlist.audio.src = itm.url;
+		playlist.audio.play();
+	},
+	next: function() {
+        console.log('playlist.next');
+		let last_played = playlist.itms.shift();
+        if (playlist.itms.length === 0 && last_played.dom.nextSibling)
+            playlist.put(last_played.dom.nextSibling);
+        else
+            playlist.start();
+	}
+};
+
+playlist.audio.addEventListener('ended',e => {
+    [].map.call(document.querySelectorAll('.playing'), i => {
+        i.classlist.remove('playing');
+    });
+	document.querySelector('.button.play').style.display = 'inherit';
+	document.querySelector('.button.pause').style.display = 'none';
+	playlist.next();
+});
+
+playlist.audio.addEventListener('playing',e => {
+    playlist.itms[0].dom.classList.add('playing');
+	document.querySelector('.button.play').style.display = 'none';
+	document.querySelector('.button.pause').style.display = 'inherit';
+});
+
+playlist.audio.addEventListener('pause',e => {
+    playlist.itms[0].dom.classList.remove('playing');
+	document.querySelector('.button.play').style.display = 'inherit';
+	document.querySelector('.button.pause').style.display = 'none';
+});
+
+const querystring = {
+    get: function(name, dflt, url) {
+        if (!dflt) dflt = undefined;
+        if (!url) url = window.location.href;
+        name = name.replace(/[\[\]]/g, "\\$&");
+        var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+            results = regex.exec(url);
+        if (!results) return dflt;
+        if (!results[2]) return '';
+        return decodeURIComponent(results[2].replace(/\+/g, " "));
+    }
+}
+
+function ajax(url, props) {
+    let defaults = {
+        method : 'GET',
+        data : undefined,
+    };
+    let actual = Object.assign({}, defaults, props);
+    return new Promise((r,f)=>{
+        let xmlHttp = new XMLHttpRequest();
+        xmlHttp.onreadystatechange = function() {
+            if (xmlHttp.readyState === 4 && xmlHttp.status == 200) {
+                r(xmlHttp.responseText);
+            } else if (xmlHttp.readyState === 4 && xmlHttp.status >= 400) {
+                console.log("Loading",url,"failed", xmlHttp.status);
+                f();
+            }
+        };
+        xmlHttp.open(actual.method, url, true);
+        xmlHttp.send(null);
+    });
+}
+
+function loadListUrl(url, nohistory) {
+    return ajax('api.php?format=json&p=' + encodeURIComponent(url))
+    .then(r => {
+        return JSON.parse(r);
+    })
+    .then(r => {
+        let list = document.createDocumentFragment();
+        let listrow = document.querySelector('#listrow').content.querySelector('li');
+        listrow = document.importNode(listrow, true);
+        r.items.map(i => {
+            let li = listrow.cloneNode(true);
+            li.className = i.type + (playlist.isPlaying(i.url) ? ' playing' : '');
+            li.dataset.url = i.url;
+            li.childNodes[0].innerHTML = i.name;
+            li.childNodes[1].href = i.url;
+
+            list.appendChild(li);
+        });
+
+        let ul = document.querySelector('#filelist');
+        ul.innerHTML = '';
+        ul.appendChild(list);
+    })
+    .catch(e => {
+        console.error("Failed", e);
+    });
+}
+
+document.addEventListener('click', e => {
+	let cl = e.target.classList;
+
+    if (e.target.tagName === 'LI' && cl.contains('folder')) {
+        let current_url = querystring.get('p','/');
+        history.replaceState({scrollTop: window.scrollY}, "MyMusic", '?p=' + encodeURIComponent(current_url))
+        let url = e.target.dataset.url;
+        loadListUrl(url).then(()=>{
+            window.scroll(0,0);
+            history.pushState({}, "MyMusic", '?p=' + encodeURIComponent(url))
+        });
+    }
+    else if (e.target.tagName === 'LI' && cl.contains('file')) {
+        playlist.put(e.target);
+    }
+    else if (cl.contains('button') && cl.contains('pause')) {
+        playlist.audio.pause();
+    }
+    else if (cl.contains('button') && cl.contains('play')) {
+        playlist.audio.play();
+    }
+    else if (cl.contains('button') && cl.contains('next')) {
+        playlist.audio.currentTime = playlist.audio.duration;
+    }
+});
+
+window.addEventListener('popstate', e => {
+    let url = querystring.get('p','/');
+    let scrollTop = e.state.scrollTop;
+    loadListUrl(url).then(()=>{window.scroll(0, scrollTop);});
+});
+
+let url = querystring.get('p','/');
+loadListUrl(url).then(()=>{
+    history.replaceState({}, "MyMusic", '?p=' + encodeURIComponent(url))
+});
+
+})();
+</script>
