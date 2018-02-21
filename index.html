@@ -356,6 +356,13 @@ document.addEventListener('click', e => {
     else if (e.target.tagName === 'LI' && cl.contains('file')) {
         playlist.put(e.target);
     }
+    else if (e.target.tagName === 'SPAN' && window.getComputedStyle(e.target).pointerEvents === 'none') {
+        // workaround for not so great browsers...
+        e.target.parentNode.dispatchEvent(new MouseEvent('click', {
+            view: window,
+            bubbles: true,
+            cancelable: true }));
+    }
     else if (cl.contains('button') && cl.contains('pause')) {
         playlist.audio.pause();
     }
