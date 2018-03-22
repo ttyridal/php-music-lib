@@ -66,10 +66,11 @@ li.file:nth-child(2n),
 li.folder:nth-child(2n) {
     background-color: rgba(0,0,0,0.05);
 }
-li.file:hover,
-li.folder:hover {
+li.file:focus,
+li.folder:focus {
     background-color: rgba(255,255,255,0.5);
     filter: invert(100%);
+    outline-style: none;
 }
 li.file:before,
 li.folder:before {
@@ -412,13 +413,14 @@ function loadListUrl(url, nohistory) {
             li.dataset.url = i.url;
             li.childNodes[0].innerHTML = i.name;
             li.childNodes[1].href = i.url;
+            li.setAttribute('tabindex', '1');
 
             list.appendChild(li);
         });
 
         let ul = document.querySelector('#filelist');
         if (url !== '/')
-            ul.innerHTML = '<li data-url=".." class="folder back">Back</li>';
+            ul.innerHTML = '<li tabindex="1" data-url=".." class="folder back">Back</li>';
         else
             ul.innerHTML = '';
         ul.appendChild(list);
@@ -427,6 +429,43 @@ function loadListUrl(url, nohistory) {
         console.error("Failed", e);
     });
 }
+
+document.addEventListener('mouseover', e => {
+    if (e.target.tagName === 'LI' && (e.target.classList.contains('file') || e.target.classList.contains('folder')))
+        e.target.focus();
+});
+
+document.addEventListener('keydown', e => {
+    if (!document.activeElement || document.activeElement.tagName !== 'LI' || e.key === 'Home') {
+        document.querySelector('li').focus();
+    } else {
+        let el;
+        switch(e.key) {
+            case 'PageDown':
+                for (let i=0; i < 10; i++)
+                    (el = document.activeElement.nextSibling) ? el.focus() : null;
+                break;
+            case 'ArrowDown':
+                (el = document.activeElement.nextSibling) ? el.focus() : null;
+                break;
+            case 'PageUp':
+                for (let i=0; i < 10; i++)
+                    (el = document.activeElement.previousSibling) ? el.focus() : null;
+                break;
+            case 'ArrowUp':
+                (el = document.activeElement.previousSibling) ? el.focus() : null;
+                break;
+            case 'Enter':
+                (el = document.activeElement) ? el.click() : null;
+                break;
+            default:
+                console.log(e);
+                return;
+        }
+    }
+    e.preventDefault();
+    e.stopPropagation();
+});
 
 document.addEventListener('click', e => {
 	let cl = e.target.classList;
