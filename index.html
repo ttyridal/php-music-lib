@@ -182,6 +182,54 @@ header > .buttons > .button {
 
 }
 
+div.alertwin {
+    position: fixed;
+    margin: auto;
+    top: 5px;
+    left: 30%;
+    right: 30%;
+    min-height: 2em;
+    background: #e0e0e0;
+    z-index: 10000;
+    font-size: 0.8em;
+    font-family: 'Console', monospace;
+    text-align: center;
+    opacity: 1;
+}
+div.alertwin.showing {
+    animation:dropdown 0.15s linear;
+    animation-fill-mode:forwards;
+}
+div.alertwin.hiding {
+    animation:fade 2s linear;
+    animation-fill-mode:forwards;
+}
+
+@keyframes dropdown {
+    0% {
+        transform: translateY(-130%);
+        visibility: visible;
+    }
+    100% {
+        transform: translate(0);
+    }
+}
+
+@keyframes fade {
+    0% {
+        opacity: 1;
+        visibility: visible;
+    }
+    70% {
+        opacity: 1;
+        visibility: visible;
+    }
+    100% {
+        opacity: 0;
+        visibility: hidden;
+    }
+}
+
 </style>
 <body>
 <header>
@@ -220,6 +268,31 @@ const infowindow = {
     }
 }
 
+const alertwin = {
+    dom: null,
+    show: function(text) {
+        if (!alertwin.dom) {
+            alertwin.dom = document.createElement('div');
+            alertwin.dom.className = 'alertwin showing';
+            alertwin.dom.addEventListener('animationend', e=>{
+                alertwin.dom.className = 'alertwin hiding';
+                alertwin.dom.addEventListener('animationend', e=> {
+                    document.body.removeChild(alertwin.dom);
+                    alertwin.dom = null;
+                }, {once: true});
+            }, {once: true});
+            document.body.appendChild(alertwin.dom);
+        } else if (alertwin.dom.classList.contains('showing')) {
+            // do nothing..
+        } else {
+            alertwin.dom.className = 'alertwin';
+            void alertwin.dom.offsetWidth; // trigger reflow to reset animation
+            alertwin.dom.className = 'alertwin hiding';
+        }
+        alertwin.dom.innerHTML = text;
+    }
+}
+
 const playlist = {
     itms: [],
 	audio: document.createElement('audio'),
@@ -237,6 +310,7 @@ const playlist = {
                 name: t.querySelector('.title').textContent,
                 dom: t};
         }
+        alertwin.show("Added " + itm.name);
 
         playlist.itms.push(itm);
 		if (playlist.itms.length === 1)
