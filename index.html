@@ -335,14 +335,16 @@ const playlist = {
 	}
 };
 
-playlist.audio.addEventListener('ended',e => {
+function onplayend(e) {
     [].map.call(document.querySelectorAll('.playing'), i => {
-        i.classlist.remove('playing');
+        i.classList.remove('playing');
     });
 	document.querySelector('.button.play').style.display = 'inherit';
 	document.querySelector('.button.pause').style.display = 'none';
 	playlist.next();
-});
+}
+
+playlist.audio.addEventListener('ended', onplayend);
 
 playlist.audio.addEventListener('playing',e => {
     playlist.itms[0].dom.classList.add('playing');
@@ -354,6 +356,11 @@ playlist.audio.addEventListener('pause',e => {
     playlist.itms[0].dom.classList.remove('playing');
 	document.querySelector('.button.play').style.display = 'inherit';
 	document.querySelector('.button.pause').style.display = 'none';
+});
+
+playlist.audio.addEventListener('error',e => {
+    console.log(e);
+    onplayend(e);
 });
 
 const querystring = {
